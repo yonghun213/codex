@@ -1,0 +1,9 @@
+requests
+sqlalchemy
+psycopg2-binary
+pandas
+matplotlib
+google-generativeai
+jinja2
+pytz
+ollama

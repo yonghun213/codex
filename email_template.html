@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 1400px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        /* Header & AI */
+        h1 { color: #d32f2f; border-bottom: 3px solid #d32f2f; padding-bottom: 10px; font-size: 26px; }
+        h2 { margin-top: 30px; font-size: 20px; border-left: 4px solid #d32f2f; padding-left: 10px; color: #333; }
+        h3 { font-size: 16px; margin-bottom: 8px; }
+        
+        .ai-box { background: linear-gradient(to right, #f3e5f5, #fce4ec); border-left: 5px solid #8e24aa; padding: 15px 20px; border-radius: 6px; margin-bottom: 25px; }
+        .ai-title { color: #6a1b9a; font-weight: bold; font-size: 1.1em; margin-bottom: 10px; }
+        .ai-content ul { margin: 0; padding-left: 20px; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 15px; }
+        th { background: #eee; padding: 10px 6px; border-bottom: 2px solid #bbb; text-align: center; font-weight: bold; }
+        td { padding: 8px 6px; border-bottom: 1px solid #eee; text-align: center; }
+        .text-left { text-align: left; }
+        
+        /* Specific Table Styles */
+        .kpi-table { background: #fff8e1; border: 1px solid #ffe0b2; }
+        .kpi-val { font-size: 24px; font-weight: bold; display: block; }
+        .kpi-lbl { font-size: 13px; color: #666; }
+        
+        .summary-box { background: #fafafa; border: 1px solid #e0e0e0; padding: 12px 15px; border-radius: 6px; }
+        
+        /* Colors & Layout */
+        .pos { color: #2e7d32; font-weight: bold; }
+        .neg { color: #c62828; font-weight: bold; }
+        .forecast-val { color: #6a1b9a; font-weight: bold; }
+        .bg-ivory { background-color: #fafafa; }
+        .bg-blue { background-color: #e3f2fd; }
+        
+        .layout-tbl { width: 100%; table-layout: fixed; border: none; }
+        .layout-tbl td { vertical-align: top; padding: 0 10px; border: none; }
+        .chart-container { text-align: center; margin-bottom: 15px; }
+        .chart-img { max-width: 100%; height: auto; border: 1px solid #eee; border-radius: 4px; }
+        
+        .footer { margin-top: 40px; font-size: 12px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>[Daily Sales] BBQ Brand Pulse - {{ date_str }}</h1>
+        
+        {% if plat_alerts %}
+        <div class="summary-box" style="background-color: #ffebee; border: 1px solid #ef5350; margin-bottom: 20px;">
+            <h3 style="color: #c62828; margin-top: 0;">🚨 Critical Alerts</h3>
+            <ul style="margin-bottom: 0;">
+                {% for alert in plat_alerts %}
+                <li><strong>{{ alert }}</strong></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="ai-box">
+            <div class="ai-title">✨ AI Executive Briefing (Powered by {{ ai_model }})</div>
+            <div class="ai-content">{{ ai_summary | safe }}</div>
+        </div>
+
+        <table class="kpi-table">
+            <tr>
+                <td><span class="kpi-val">${{ "{:,.0f}".format(kpi.sales) }}</span><span class="kpi-lbl">Yesterday Sales</span></td>
+                <td>
+                    <span class="kpi-val">
+                        DoD {% if kpi.sales_dod >= 0 %}<span class="pos">+{{ "{:.1f}".format(kpi.sales_dod) }}%</span>{% else %}<span class="neg">{{ "{:.1f}".format(kpi.sales_dod) }}%</span>{% endif %}
+                        | Wk {% if kpi.sales_wow >= 0 %}<span class="pos">+{{ "{:.1f}".format(kpi.sales_wow) }}%</span>{% else %}<span class="neg">{{ "{:.1f}".format(kpi.sales_wow) }}%</span>{% endif %}
+                    </span>
+                    <span class="kpi-lbl">Trend</span>
+                </td>
+                <td><span class="kpi-val">{{ "{:,}".format(kpi.orders) }}</span><span class="kpi-lbl">Orders</span></td>
+                <td><span class="kpi-val">${{ "{:,.2f}".format(kpi.avg_chk) }}</span><span class="kpi-lbl">Avg Ticket</span></td>
+                <td><span class="kpi-val forecast-val">${{ "{:,.0f}".format(cum.forecast) }}</span><span class="kpi-lbl">Month Forecast</span></td>
+            </tr>
+        </table>
+
+        {% if region_profiles %}
+        <h2>Regional Insights (ON / BC / AB)</h2>
+        <div class="summary-box">
+            <ul>
+                {% for r, p in region_profiles.items() %}
+                <li>
+                    <strong>{{ r }}</strong>: Sales ${{ "{:,.0f}".format(p.sales) }} ({{ "{:.1f}".format(p.share * 100) }}%), 
+                    Orders {{ "{:,}".format(p.orders) }}, Avg Tkt ${{ "{:,.2f}".format(p.avg_ticket) }}, Peak {{ p.peak_hour }}:00
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <h2>All Stores Detail</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th class="text-left" style="min-width:150px">Store</th>
+                    <th>Sales</th><th>vs Wk</th>
+                    <th>Din</th><th>TkOu</th><th>Del</th>
+                    <th>Ub</th><th>Sk</th><th>DD</th><th>Fan</th>
+                    <th>WTD</th><th>MTD</th><th>EOM</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in full_rank_data %}
+                <tr>
+                    <td class="text-left">
+                        <b>{{ row.name }}</b>
+                        {% if row.health_grade == 'A' %} <span style="font-size:10px">⭐</span> {% endif %}
+                        {% if row.health_grade == 'D' %} <span style="font-size:10px">⚠️</span> {% endif %}
+                    </td>
+                    <td><b>${{ "{:,.0f}".format(row.sales) }}</b></td>
+                    <td>
+                        {% if row.wow_pct >= 0 %}<span class="pos">+{{ "{:.1f}".format(row.wow_pct) }}%</span>
+                        {% else %}<span class="neg">{{ "{:.1f}".format(row.wow_pct) }}%</span>{% endif %}
+                    </td>
+                    <td>{{ "{:.0f}".format(row.dinein_pct) }}%</td>
+                    <td>{{ "{:.0f}".format(row.takeout_pct) }}%</td>
+                    <td><b>{{ "{:.0f}".format(row.delivery_pct) }}%</b></td>
+                    <td class="bg-ivory">{{ "{:.0f}".format(row.uber_pct) }}%</td>
+                    <td class="bg-ivory">{{ "{:.0f}".format(row.skip_pct) }}%</td>
+                    <td class="bg-ivory">{{ "{:.0f}".format(row.doordash_pct) }}%</td>
+                    <td class="bg-ivory">{{ "{:.0f}".format(row.fantuan_pct) }}%</td>
+                    <td class="bg-blue">${{ "{:,.0f}".format(row.sales_wtd) }}</td>
+                    <td class="bg-blue">${{ "{:,.0f}".format(row.sales_mtd) }}</td>
+                    <td class="bg-blue forecast-val"><b>${{ "{:,.0f}".format(row.sales_eom) }}</b></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table class="layout-tbl">
+            <tr>
+                <td width="50%">
+                    <h2>Rising Stars (Health A)</h2>
+                    <table>
+                        <thead><tr><th class="text-left">Store</th><th>Sales</th><th>WoW</th><th>Gr</th></tr></thead>
+                        <tbody>
+                            {% for r in rising_stars %}
+                            <tr>
+                                <td class="text-left"><b>{{ r.name }}</b></td>
+                                <td>${{ "{:,.0f}".format(r.sales) }}</td>
+                                <td><span class="pos">+{{ "{:.1f}".format(r.wow_pct) }}%</span></td>
+                                <td>{{ r.health_grade }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+                <td width="50%">
+                    <h2>At-Risk (Health D)</h2>
+                    <table>
+                        <thead><tr><th class="text-left">Store</th><th>Sales</th><th>WoW</th><th>Gr</th></tr></thead>
+                        <tbody>
+                            {% for r in at_risk %}
+                            <tr>
+                                <td class="text-left"><b>{{ r.name }}</b></td>
+                                <td>${{ "{:,.0f}".format(r.sales) }}</td>
+                                <td><span class="neg">{{ "{:.1f}".format(r.wow_pct) }}%</span></td>
+                                <td>{{ r.health_grade }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <table class="layout-tbl">
+            <tr>
+                <td width="50%">
+                    <h3 style="color:#2e7d32">🏆 Top 5 Sales</h3>
+                    <table>
+                        <thead><tr><th class="text-left">Store</th><th>Sales</th><th>vs Wk</th></tr></thead>
+                        <tbody>
+                            {% for r in top_stores %}
+                            <tr>
+                                <td class="text-left"><b>{{ r.name }}</b></td>
+                                <td>${{ "{:,.0f}".format(r.sales) }}</td>
+                                <td>
+                                    {% if r.wow_pct >= 0 %}<span class="pos">+{{ "{:.1f}".format(r.wow_pct) }}%</span>
+                                    {% else %}<span class="neg">{{ "{:.1f}".format(r.wow_pct) }}%</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+                <td width="50%">
+                    <h3 style="color:#c62828">📉 Bottom 5 Sales</h3>
+                    <table>
+                        <thead><tr><th class="text-left">Store</th><th>Sales</th><th>vs Wk</th></tr></thead>
+                        <tbody>
+                            {% for r in bot_stores %}
+                            <tr>
+                                <td class="text-left"><b>{{ r.name }}</b></td>
+                                <td>${{ "{:,.0f}".format(r.sales) }}</td>
+                                <td>
+                                    {% if r.wow_pct >= 0 %}<span class="pos">+{{ "{:.1f}".format(r.wow_pct) }}%</span>
+                                    {% else %}<span class="neg">{{ "{:.1f}".format(r.wow_pct) }}%</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <table class="layout-tbl">
+            <tr>
+                <td width="50%">
+                    <h2>Period Performance</h2>
+                    <table>
+                        <thead><tr><th class="text-left">Period</th><th>Prev</th><th>Curr</th><th>Sales</th><th>Var</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-left"><strong>WTD</strong></td>
+                                <td>{{ cum.wtd_prev_range }}</td>
+                                <td>{{ cum.wtd_curr_range }}</td>
+                                <td><strong>${{ "{:,.0f}".format(cum.wtd_curr_val) }}</strong></td>
+                                <td>
+                                    {% if cum.wtd_p >= 0 %}<span class="pos">+{{ "{:.1f}".format(cum.wtd_p) }}%</span>
+                                    {% else %}<span class="neg">{{ "{:.1f}".format(cum.wtd_p) }}%</span>{% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-left"><strong>MTD</strong></td>
+                                <td>{{ cum.mtd_prev_range }}</td>
+                                <td>{{ cum.mtd_curr_range }}</td>
+                                <td><strong>${{ "{:,.0f}".format(cum.mtd_curr_val) }}</strong></td>
+                                <td>
+                                    {% if cum.mtd_p >= 0 %}<span class="pos">+{{ "{:.1f}".format(cum.mtd_p) }}%</span>
+                                    {% else %}<span class="neg">{{ "{:.1f}".format(cum.mtd_p) }}%</span>{% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-left"><strong>Forecast</strong></td>
+                                <td>-</td>
+                                <td>Prog {{ "{:.1f}".format(cum.month_progress) }}%</td>
+                                <td class="forecast-val"><strong>${{ "{:,.0f}".format(cum.forecast) }}</strong></td>
+                                <td>-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+                <td width="50%">
+                    <h2>Brand Momentum (28d)</h2>
+                    <table>
+                        <thead><tr><th class="text-left">Window</th><th>Range</th><th>Sales</th><th>Δ</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-left"><strong>Last 28d</strong></td>
+                                <td>{{ cum.brand28_curr_range }}</td>
+                                <td>${{ "{:,.0f}".format(cum.brand28_sales_curr) }}</td>
+                                <td>
+                                    {% if cum.brand28_sales_pct >= 0 %}<span class="pos">+{{ "{:.1f}".format(cum.brand28_sales_pct) }}%</span>
+                                    {% else %}<span class="neg">{{ "{:.1f}".format(cum.brand28_sales_pct) }}%</span>{% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <table>
+                        <thead><tr><th class="text-left">Ch</th><th>L28</th><th>P28</th><th>Δ</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-left">Del</td>
+                                <td>{{ "{:.1f}".format(cum.brand28_mix_curr_delivery) }}%</td>
+                                <td>{{ "{:.1f}".format(cum.brand28_mix_prev_delivery) }}%</td>
+                                <td>
+                                    {% set d_del = cum.brand28_mix_curr_delivery - cum.brand28_mix_prev_delivery %}
+                                    {% if d_del >= 0 %}<span class="pos">+{{ "{:.1f}".format(d_del) }}%</span>
+                                    {% else %}<span class="neg">{{ "{:.1f}".format(d_del) }}%</span>{% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <table class="layout-tbl">
+            <tr>
+                <td width="50%">
+                    <h2>Forward 7-Day</h2>
+                    <table>
+                        <thead><tr><th class="text-left">Date</th><th>DOW</th><th>Fcst</th></tr></thead>
+                        <tbody>
+                            {% for d in cum.forward7_days %}
+                            <tr>
+                                <td class="text-left">{{ d.date.strftime('%m-%d') }}</td>
+                                <td>{{ d.dow }}</td>
+                                <td>${{ "{:,.0f}".format(d.forecast) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr>
+                                <td class="text-left"><strong>Total</strong></td>
+                                <td>-</td>
+                                <td><strong>${{ "{:,.0f}".format(cum.forward7_total) }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+                <td width="50%">
+                    <h2>Yesterday Mix</h2>
+                    <table>
+                        <thead><tr><th class="text-left">Channel</th><th>Share</th></tr></thead>
+                        <tbody>
+                            {% for k, v in t_mix.items() %}
+                            <tr><td class="text-left">{{ k|title }}</td><td>{{ "{:.1f}".format(v) }}%</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <table>
+                        <thead><tr><th class="text-left">Platform</th><th>Share</th></tr></thead>
+                        <tbody>
+                            {% for k, v in p_mix.items() %}
+                            <tr><td class="text-left">{{ k|title }}</td><td>{{ "{:.1f}".format(v) }}%</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <h2>Visual Insights</h2>
+        <table class="layout-tbl">
+            <tr>
+                <td width="50%"><div class="chart-container"><img class="chart-img" src="cid:mtd_trend"/></div></td>
+                <td width="50%"><div class="chart-container"><img class="chart-img" src="cid:top_menu_chart"/></div></td>
+            </tr>
+            <tr>
+                <td width="50%"><div class="chart-container"><img class="chart-img" src="cid:region_peak_profile"/></div></td>
+                <td width="50%"><div class="chart-container"><img class="chart-img" src="cid:region_avg_ticket_orders"/></div></td>
+            </tr>
+        </table>
+
+        <div class="footer">
+            Generated by BBQ Data System • {{ timestamp }}
+        </div>
+    </div>
+</body>
+</html>
